@@ -127,7 +127,7 @@ int main (int argc, char * argv[])
                     recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
 
                     received += 1;
-                    fwrite(response, sizeof(response), 1, getFile);
+                    fwrite(response, 1, strlen(response), getFile);
                 }
                 fclose(getFile);
                 // Blocks till bytes are received
@@ -169,7 +169,7 @@ int main (int argc, char * argv[])
                 while(currentBuffer <= numBuffers){
                     bzero(msg,sizeof(msg));
 
-                    fread(msg, MAXMSGSIZE, 1, putFile);
+                    fread(msg, 1, MAXMSGSIZE, putFile);
 
                     nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
                     if ( nbytes == -1) {

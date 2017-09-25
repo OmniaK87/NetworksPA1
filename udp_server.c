@@ -140,7 +140,7 @@ int main (int argc, char * argv[] )
                     sprintf(sequence, "%04d|%04d|", currentBuffer, numBuffers);
                     strcpy(msg, sequence);
                     strcat(msg, fileBuffer);*/
-                    fread(msg, MAXMSGSIZE, 1, file);
+                    fread(msg, 1, MAXMSGSIZE, file);
 
                     //printf("|%s|\n", msg);
                     nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
@@ -188,7 +188,7 @@ int main (int argc, char * argv[] )
                 recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
                 received += 1;
 
-                fwrite(response, strlen(response), 1, file);
+                fwrite(response, 1, strlen(response), file);
             }
             fclose(file);
             bzero(msg,sizeof(msg));
