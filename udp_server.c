@@ -13,6 +13,7 @@
 #include <memory.h>
 #include <string.h>
 #include <dirent.h>
+#include <math.h>
 /* You will have to modify the program below */
 
 #define MAXBUFSIZE 1000
@@ -99,8 +100,10 @@ int main (int argc, char * argv[] )
 	char filename[MAXBUFSIZE];
 	char path[PATH_MAX];
 	FILE *file;
+	char fileBuffer[MAXMSGSIZE];
 	while(loop){
         char msg[MAXMSGSIZE];
+        bzero(msg,sizeof(msg));
         strcpy(msg, "Server Response:\n");
         //waits for an incoming message
         bzero(buffer,sizeof(buffer));
@@ -113,16 +116,49 @@ int main (int argc, char * argv[] )
             memcpy(filename, &buffer[4], MAXBUFSIZE-4);
 
             if (file = fopen(filename, "r")){
+                fseek(file, 0, SEEK_END);
+                size_t fileSize = ftell(file);
+                fseek(file, 0, SEEK_SET);
+
+                int numBuffers = ceil((double)fileSize / (MAXMSGSIZE-10));
+                int currentBuffer = 1;
+                bzero(msg,sizeof(msg));
+                sprintf(msg, "%d", numBuffers);
+                nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
+                if ( nbytes == -1) {
+                    printf("Error sendto(): %s\n", strerror(errno));
+                }
+
+                while(currentBuffer <= numBuffers){
+                    bzero(msg,sizeof(msg));
+
+                    /*fread(fileBuffer, MAXMSGSIZE-10, 1, file);
+
+                    char sequence[10];
+                    sprintf(sequence, "%04d|%04d|", currentBuffer, numBuffers);
+                    strcpy(msg, sequence);
+                    strcat(msg, fileBuffer);*/
+                    fread(msg, MAXMSGSIZE, 1, file);
+
+                    nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
+                    if ( nbytes == -1) {
+                        printf("Error sendto(): %s\n", strerror(errno));
+                    }
+
+                    //printf("\n\n\nNEW BUFFER\n|%s|\n", msg);
+                    currentBuffer += 1;
+                }
+
                 fclose(file);
 
             } else {
                 strcat(msg, "File does not exist.\n");
+                nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
+                if ( nbytes == -1) {
+                    printf("Error sendto(): %s\n", strerror(errno));
+                }
             }
 
-            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
-            if ( nbytes == -1) {
-                printf("Error sendto(): %s\n", strerror(errno));
-            }
             printf("GET request completed.\n");
             break;
 
@@ -131,7 +167,7 @@ int main (int argc, char * argv[] )
             memcpy(filename, &buffer[4], MAXBUFSIZE-4);
 
             strcat(msg, "in put\n");
-            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
             if ( nbytes == -1) {
                 printf("Error sendto(): %s\n", strerror(errno));
             }
@@ -158,7 +194,7 @@ int main (int argc, char * argv[] )
                 strcat(msg, "File does not exist.\n");
             }
 
-            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
             if ( nbytes == -1) {
                 printf("Error sendto(): %s\n", strerror(errno));
             }
@@ -176,7 +212,7 @@ int main (int argc, char * argv[] )
                 strcat(msg, "Unable to list directory.\n");
             }
 
-            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
             if ( nbytes == -1) {
                 printf("Error sendto(): %s\n", strerror(errno));
             }
@@ -191,7 +227,7 @@ int main (int argc, char * argv[] )
         default:
             strcat(msg, buffer);
             strcat(msg, " was not understood.\n");
-            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
             if ( nbytes == -1) {
                 printf("Error sendto(): %s\n", strerror(errno));
             }

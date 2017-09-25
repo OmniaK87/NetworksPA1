@@ -92,6 +92,7 @@ int main (int argc, char * argv[])
 
 	char command[MAXBUFSIZE];
 	int loop = 1;
+	char filename[MAXBUFSIZE];
 
 	while(loop){
         bzero(&command, sizeof(command));
@@ -102,6 +103,9 @@ int main (int argc, char * argv[])
 
 		switch(parse_command(command)){
         case GET:
+            bzero(filename,sizeof(filename));
+            memcpy(filename, &buffer[4], MAXBUFSIZE-4);
+
             nbytes = sendto(sock, command, strlen(command), 0, (struct sockaddr *) &remote, sizeof(remote));
             if ( nbytes == -1) {
                 printf("Error sendto(): %s\n", strerror(errno));
@@ -109,7 +113,42 @@ int main (int argc, char * argv[])
             // Blocks till bytes are received
             bzero(response,sizeof(response));
             nbytes = recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
-            printf("%s", response);
+            if(!strncmp(response, "Server Response:", 15)){
+                printf("%s", response);
+            } else {
+                /*int packets = atoi(response);
+                for (int i = 1; i <= packets; i++){
+                    recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
+                    char* token = strtok(response, "|");
+                    char* packetNum = token;
+                    char* packetTotal;
+                    char* data;
+                    int item = 1;
+                    while(token != NULL){
+                        printf("pre%s\n", token);
+                        token = strtok(NULL, "|");
+                        printf("post
+                               %s\n", token);
+                        item += 1;
+                    }*/
+                int packets = atoi(response);
+                int received = 0;
+
+                FILE *file = fopen(filename, "w");
+                fseek(file, 0, SEEK_SET);
+                for (int i = 1; i <= packets; i++){
+                    recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
+                    received += 1;
+                    printf("other: %s", response);
+
+                    fwrite(response, strlen(response), 1, file);
+
+                }
+                fclose(file);
+
+
+            }
+
             break;
 
         case PUT:

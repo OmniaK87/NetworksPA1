@@ -1,12 +1,14 @@
+CC = gcc
+
 clientserver: 
-	gcc udp_client.c -o client
-	gcc udp_server.c -o server 
+	$(CC) udp_client.c -o client -lm
+	$(CC) udp_server.c -o server -lm
 
 client:
-	gcc udp_client.c -o client
+	$(CC) udp_client.c -o client -lm
 
 server:
-	gcc udp_server.c -o server
+	$(CC) udp_server.c -o server -lm
 
 clean:
 	rm -f server client
