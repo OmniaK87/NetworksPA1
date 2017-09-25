@@ -116,7 +116,7 @@ int main (int argc, char * argv[] )
             bzero(filename,sizeof(filename));
             memcpy(filename, &buffer[4], MAXBUFSIZE-4);
 
-            if (file = fopen(filename, "r")){
+            if (file = fopen(filename, "rb")){
                 fseek(file, 0, SEEK_END);
                 size_t fileSize = ftell(file);
                 fseek(file, 0, SEEK_SET);

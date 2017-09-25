@@ -145,7 +145,7 @@ int main (int argc, char * argv[])
             bzero(putFilename,sizeof(putFilename));
             memcpy(putFilename, &command[4], MAXBUFSIZE-4);
 
-            if (putFile = fopen(putFilename, "r")){
+            if (putFile = fopen(putFilename, "rb")){
                 char msg[MAXMSGSIZE];
                 nbytes = sendto(sock, command, strlen(command), 0, (struct sockaddr *) &remote, sizeof(remote));
                 if ( nbytes == -1) {
