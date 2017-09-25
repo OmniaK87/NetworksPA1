@@ -182,7 +182,7 @@ int main (int argc, char * argv[] )
             int packets = atoi(response);
             int received = 0;
 
-            FILE *file = fopen(filename, "w");
+            FILE *file = fopen(filename, "wb");
             fseek(file, 0, SEEK_SET);
             for (int i = 1; i <= packets; i++){
                 recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));

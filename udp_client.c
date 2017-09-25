@@ -122,12 +122,13 @@ int main (int argc, char * argv[])
                 int received = 0;
 
 
-                FILE *getFile = fopen(getFilename, "w");
+                FILE *getFile = fopen(getFilename, "wb");
                 for (int i = 1; i <= packets; i++){
                     recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
-
+                    printf(response);
                     received += 1;
-                    fwrite(response, 1, strlen(response), getFile);
+                    //fwrite(response, 1, strlen(response), getFile);
+                    fprintf(getFile, response);
                 }
                 fclose(getFile);
                 // Blocks till bytes are received
@@ -169,7 +170,7 @@ int main (int argc, char * argv[])
                 while(currentBuffer <= numBuffers){
                     bzero(msg,sizeof(msg));
 
-                    fread(msg, 1, MAXMSGSIZE, putFile);
+                    fread(&msg, 1, MAXMSGSIZE, putFile);
 
                     nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
                     if ( nbytes == -1) {
