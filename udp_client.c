@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <errno.h>
+#include <math.h>
 
 #define MAXBUFSIZE 100
 #define MAXMSGSIZE 2048
@@ -87,13 +88,12 @@ int main (int argc, char * argv[])
 	{
 		printf("unable to create socket");
 	}
+
 	int on = 1;
 	setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
 
 	char command[MAXBUFSIZE];
 	int loop = 1;
-	char filename[MAXBUFSIZE];
-
 	while(loop){
         bzero(&command, sizeof(command));
 		printf("Enter a command: ");
@@ -102,9 +102,11 @@ int main (int argc, char * argv[])
 		if (command[strlen(command)-1] == '\n') command[strlen(command)-1] = '\0'; //removing trailing newline
 
 		switch(parse_command(command)){
-        case GET:
-            bzero(filename,sizeof(filename));
-            memcpy(filename, &buffer[4], MAXBUFSIZE-4);
+        case GET:;
+            char getFilename[MAXBUFSIZE];
+            FILE *getFile;
+            bzero(getFilename,sizeof(getFilename));
+            memcpy(getFilename, &command[4], MAXBUFSIZE-4);
 
             nbytes = sendto(sock, command, strlen(command), 0, (struct sockaddr *) &remote, sizeof(remote));
             if ( nbytes == -1) {
@@ -116,50 +118,69 @@ int main (int argc, char * argv[])
             if(!strncmp(response, "Server Response:", 15)){
                 printf("%s", response);
             } else {
-                /*int packets = atoi(response);
-                for (int i = 1; i <= packets; i++){
-                    recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
-                    char* token = strtok(response, "|");
-                    char* packetNum = token;
-                    char* packetTotal;
-                    char* data;
-                    int item = 1;
-                    while(token != NULL){
-                        printf("pre%s\n", token);
-                        token = strtok(NULL, "|");
-                        printf("post
-                               %s\n", token);
-                        item += 1;
-                    }*/
                 int packets = atoi(response);
                 int received = 0;
 
-                FILE *file = fopen(filename, "w");
-                fseek(file, 0, SEEK_SET);
+
+                FILE *getFile = fopen(getFilename, "w");
                 for (int i = 1; i <= packets; i++){
                     recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
+
                     received += 1;
-                    printf("other: %s", response);
-
-                    fwrite(response, strlen(response), 1, file);
-
+                    fwrite(response, sizeof(response), 1, getFile);
                 }
-                fclose(file);
-
-
+                fclose(getFile);
             }
 
             break;
 
-        case PUT:
-            nbytes = sendto(sock, command, strlen(command), 0, (struct sockaddr *) &remote, sizeof(remote));
-            if ( nbytes == -1) {
-                printf("Error sendto(): %s\n", strerror(errno));
+
+        case PUT:;
+            FILE *putFile;
+            char putFilename[MAXBUFSIZE];
+            bzero(putFilename,sizeof(putFilename));
+            memcpy(putFilename, &command[4], MAXBUFSIZE-4);
+
+            if (putFile = fopen(putFilename, "r")){
+                char msg[MAXMSGSIZE];
+                nbytes = sendto(sock, command, strlen(command), 0, (struct sockaddr *) &remote, sizeof(remote));
+                if ( nbytes == -1) {
+                    printf("Error sendto(): %s\n", strerror(errno));
+                }
+
+
+                fseek(putFile, 0, SEEK_END);
+                size_t fileSize = ftell(putFile);
+                fseek(putFile, 0, SEEK_SET);
+
+                int numBuffers = ceil((double)fileSize / (MAXMSGSIZE-10));
+                int currentBuffer = 1;
+                bzero(msg,sizeof(msg));
+                sprintf(msg, "%d", numBuffers);
+                nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
+                if ( nbytes == -1) {
+                    printf("Error sendto(): %s\n", strerror(errno));
+                }
+
+                while(currentBuffer <= numBuffers){
+                    bzero(msg,sizeof(msg));
+
+                    fread(msg, MAXMSGSIZE, 1, putFile);
+
+                    nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
+                    if ( nbytes == -1) {
+                        printf("Error sendto(): %s\n", strerror(errno));
+                    }
+
+                    //printf("\n\n\nNEW BUFFER\n|%s|\n", msg);
+                    currentBuffer += 1;
+                }
+
+                fclose(putFile);
+
+            } else {
+                printf("File does not exist.\n");
             }
-            // Blocks till bytes are received
-            bzero(response,sizeof(response));
-            nbytes = recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
-            printf("%s", response);
             break;
 
         case DELETE:

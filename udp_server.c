@@ -16,7 +16,7 @@
 #include <math.h>
 /* You will have to modify the program below */
 
-#define MAXBUFSIZE 1000
+#define MAXBUFSIZE 100
 #define MAXMSGSIZE 2048
 #define EXIT 1
 #define LS 2
@@ -56,7 +56,7 @@ int parse_buffer(const char* input) {
 int main (int argc, char * argv[] )
 {
 	int sock;                           //This will be our socket
-	struct sockaddr_in sin, remote;     //"Internet socket address structure"
+	struct sockaddr_in sin, remote, from_addr;     //"Internet socket address structure"
 	unsigned int remote_length;         //length of the sockaddr_in structure
 	int nbytes;                        //number of bytes we receive in our message
 	char buffer[MAXBUFSIZE];             //a buffer to store our received message
@@ -101,6 +101,7 @@ int main (int argc, char * argv[] )
 	char path[PATH_MAX];
 	FILE *file;
 	char fileBuffer[MAXMSGSIZE];
+	char response[MAXMSGSIZE];
 	while(loop){
         char msg[MAXMSGSIZE];
         bzero(msg,sizeof(msg));
@@ -130,6 +131,7 @@ int main (int argc, char * argv[] )
                 }
 
                 while(currentBuffer <= numBuffers){
+                    //printf("in while.\n");
                     bzero(msg,sizeof(msg));
 
                     /*fread(fileBuffer, MAXMSGSIZE-10, 1, file);
@@ -140,6 +142,7 @@ int main (int argc, char * argv[] )
                     strcat(msg, fileBuffer);*/
                     fread(msg, MAXMSGSIZE, 1, file);
 
+                    //printf("|%s|\n", msg);
                     nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
                     if ( nbytes == -1) {
                         printf("Error sendto(): %s\n", strerror(errno));
@@ -165,12 +168,20 @@ int main (int argc, char * argv[] )
         case PUT:
             bzero(filename,sizeof(filename));
             memcpy(filename, &buffer[4], MAXBUFSIZE-4);
+            bzero(response,sizeof(response));
+            nbytes = recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
+            int packets = atoi(response);
+            int received = 0;
 
-            strcat(msg, "in put\n");
-            nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
-            if ( nbytes == -1) {
-                printf("Error sendto(): %s\n", strerror(errno));
+            FILE *file = fopen(filename, "w");
+            fseek(file, 0, SEEK_SET);
+            for (int i = 1; i <= packets; i++){
+                recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
+                received += 1;
+
+                fwrite(response, strlen(response), 1, file);
             }
+            fclose(file);
             printf("PUT request completed.\n");
             break;
 
