@@ -12,14 +12,48 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <string.h>
+#include <dirent.h>
 /* You will have to modify the program below */
 
-#define MAXBUFSIZE 100
+#define MAXBUFSIZE 1000
+#define MAXMSGSIZE 2048
+#define EXIT 1
+#define LS 2
+#define GET 3
+#define PUT 4
+#define DELETE 5
+
+int parse_buffer(const char* input) {
+    //printf("|%s|\n", input);
+    if (!strcmp(input,"ls")){
+        return LS;
+    }
+    else if (!strcmp(input, "exit")){
+        return EXIT;
+    }
+    else {
+        if (!strcmp(input, "")){
+            return -1;
+        }
+        char temp[MAXBUFSIZE];
+        strcpy(temp, input);
+        const char* cmd = strtok(temp, " ");
+
+        if (!strcmp(cmd, "get")){
+            return GET;
+        }
+        else if (!strcmp(cmd, "put")){
+            return PUT;
+        }
+        else if (!strcmp(cmd, "delete")){
+            return DELETE;
+        }
+        else return -1;
+    }
+}
 
 int main (int argc, char * argv[] )
 {
-
-
 	int sock;                           //This will be our socket
 	struct sockaddr_in sin, remote;     //"Internet socket address structure"
 	unsigned int remote_length;         //length of the sockaddr_in structure
@@ -42,14 +76,16 @@ int main (int argc, char * argv[] )
 
 
 	//Causes the system to create a generic socket of type UDP (datagram)
-	if ((sock = **** CALL SOCKET() HERE TO CREATE UDP SOCKET ****) < 0)
+	//if ((sock = **** CALL SOCKET() HERE TO CREATE UDP SOCKET ****) < 0)
+    if ((sock = socket(PF_INET,SOCK_DGRAM,0)) < 0)
 	{
-		printf("unable to create socket");
+		printf("unable to create socket\n");
 	}
-
+	int on = 1;
+	setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &on, sizeof(on));
 
 	/******************
-	  Once we've created a socket, we must bind that socket to the 
+	  Once we've created a socket, we must bind that socket to the
 	  local address and port we've supplied in the sockaddr_in struct
 	 ******************/
 	if (bind(sock, (struct sockaddr *)&sin, sizeof(sin)) < 0)
@@ -57,17 +93,113 @@ int main (int argc, char * argv[] )
 		printf("unable to bind socket\n");
 	}
 
-	remote_length = sizeof(remote);
+    printf("Server Running.\n");
 
-	//waits for an incoming message
-	bzero(buffer,sizeof(buffer));
-	nbytes = nbytes = **** CALL RECVFROM() HERE ****;
+	int loop = 1;
+	char filename[MAXBUFSIZE];
+	char path[PATH_MAX];
+	FILE *file;
+	while(loop){
+        char msg[MAXMSGSIZE];
+        strcpy(msg, "Server Response:\n");
+        //waits for an incoming message
+        bzero(buffer,sizeof(buffer));
+        socklen_t addrlen = sizeof(remote);
+        nbytes = recvfrom(sock, buffer, MAXBUFSIZE, 0, (struct sockaddr *)&remote, &addrlen);
 
-	printf("The client says %s\n", buffer);
+        switch(parse_buffer(buffer)){
+        case GET:
+            bzero(filename,sizeof(filename));
+            memcpy(filename, &buffer[4], MAXBUFSIZE-4);
 
-	char msg[] = "orange";
-	nbytes = **** CALL SENDTO() HERE ****;
+            if (file = fopen(filename, "r")){
+                fclose(file);
+
+            } else {
+                strcat(msg, "File does not exist.\n");
+            }
+
+            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            if ( nbytes == -1) {
+                printf("Error sendto(): %s\n", strerror(errno));
+            }
+            printf("GET request completed.\n");
+            break;
+
+        case PUT:
+            bzero(filename,sizeof(filename));
+            memcpy(filename, &buffer[4], MAXBUFSIZE-4);
+
+            strcat(msg, "in put\n");
+            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            if ( nbytes == -1) {
+                printf("Error sendto(): %s\n", strerror(errno));
+            }
+            printf("PUT request completed.\n");
+            break;
+
+        case DELETE:
+            bzero(filename,sizeof(filename));
+            memcpy(filename, &buffer[7], MAXBUFSIZE-7);
+
+            if (file = fopen(filename, "r")){
+                fclose(file);
+                char removeCommand[MAXBUFSIZE];
+                strcpy(removeCommand, "/bin/rm ");
+                strcat(removeCommand, filename);
+
+                FILE *rm = popen(removeCommand, "r");
+                pclose(rm);
+
+                strcat(msg, "Deleted ");
+                strcat(msg, filename);
+                strcat(msg, "\n");
+            } else {
+                strcat(msg, "File does not exist.\n");
+            }
+
+            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            if ( nbytes == -1) {
+                printf("Error sendto(): %s\n", strerror(errno));
+            }
+            printf("DELETE request completed.\n");
+            break;
+
+        case LS: ;
+            FILE *ls = popen("/bin/ls -la", "r");
+            if (ls != NULL) {
+                while (fgets(path, PATH_MAX, ls) != NULL) {
+                    strcat(msg, path);
+                }
+                pclose(ls);
+            } else {
+                strcat(msg, "Unable to list directory.\n");
+            }
+
+            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            if ( nbytes == -1) {
+                printf("Error sendto(): %s\n", strerror(errno));
+            }
+            printf("LS request completed.\n");
+            break;
+
+        case EXIT:
+            printf("EXIT command received from client\n");
+            loop = 0;
+            break;
+
+        default:
+            strcat(msg, buffer);
+            strcat(msg, " was not understood.\n");
+            nbytes = sendto(sock, msg, MAXMSGSIZE, 0, (struct sockaddr *) &remote, sizeof(remote));
+            if ( nbytes == -1) {
+                printf("Error sendto(): %s\n", strerror(errno));
+            }
+            break;
+		}
+	}
 
 	close(sock);
+	printf("Server Closed.\n");
 }
 
