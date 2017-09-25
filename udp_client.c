@@ -130,6 +130,10 @@ int main (int argc, char * argv[])
                     fwrite(response, sizeof(response), 1, getFile);
                 }
                 fclose(getFile);
+                // Blocks till bytes are received
+                bzero(response,sizeof(response));
+                nbytes = recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
+                printf("%s", response);
             }
 
             break;
@@ -177,6 +181,10 @@ int main (int argc, char * argv[])
                 }
 
                 fclose(putFile);
+                // Blocks till bytes are received
+                bzero(response,sizeof(response));
+                nbytes = recvfrom(sock, response, sizeof(response), 0, (struct sockaddr*) &from_addr, (unsigned int * restrict) sizeof(from_addr));
+                printf("%s", response);
 
             } else {
                 printf("File does not exist.\n");

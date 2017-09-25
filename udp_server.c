@@ -153,6 +153,15 @@ int main (int argc, char * argv[] )
                 }
 
                 fclose(file);
+                bzero(msg,sizeof(msg));
+                strcpy(msg, "Server Response:\n");
+                strcat(msg, "Got ");
+                strcat(msg, filename);
+                strcat(msg, "\n");
+                nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
+                if ( nbytes == -1) {
+                    printf("Error sendto(): %s\n", strerror(errno));
+                }
 
             } else {
                 strcat(msg, "File does not exist.\n");
@@ -182,6 +191,15 @@ int main (int argc, char * argv[] )
                 fwrite(response, strlen(response), 1, file);
             }
             fclose(file);
+            bzero(msg,sizeof(msg));
+            strcpy(msg, "Server Response:\n");
+            strcat(msg, "Put ");
+            strcat(msg, filename);
+            strcat(msg, "\n");
+            nbytes = sendto(sock, msg, strlen(msg), 0, (struct sockaddr *) &remote, sizeof(remote));
+            if ( nbytes == -1) {
+                printf("Error sendto(): %s\n", strerror(errno));
+            }
             printf("PUT request completed.\n");
             break;
 
